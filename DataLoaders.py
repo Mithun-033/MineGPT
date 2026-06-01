@@ -2,17 +2,19 @@ from torch.utils.data import DataLoader, Dataset
 from lightning.pytorch import LightningDataModule
 import os
 import numpy as np
+from HyperParam_Classes import Config
 
 class TokenisedDataset(Dataset):
     ''' A Dataset wrapped class module to return tokenized input-output pairs'''
 
-    def __init__(self,NpArr):
+    def __init__(self,NpArr,config):
         '''
         Initialising the Dataset.
         Args:
             NpArr (arr): numpy array with mmap_mode set to read.
         '''
         self.data=NpArr
+        self.cwl=config.cwl
         
     def __len__(self):
         ''' Returns the length of dataset'''
@@ -20,15 +22,15 @@ class TokenisedDataset(Dataset):
     
     def __getitem__(self,idx):
         '''Returns the input-output pair'''
-        x=self.data[idx][:-1]
-        y=self.data[idx][1:]
+        x=self.data[idx:idx+self.cwl]
+        y=self.data[idx+1:idx+self.cwl+1]
         return x,y
     
 
 class DataModule(LightningDataModule):
     ''' Class wrapped around Lightning Data Module to return Train/Val DataLoaders'''
     def __init__(self,file_path,train_val_split,num_workers=2,pin_memory=True,persistent_workers=True,
-                 batch_size=32,prefetch_factor=2):
+                 batch_size=32,prefetch_factor=2,config=None):
         '''
         Initialises the DataModule.
         
@@ -54,6 +56,7 @@ class DataModule(LightningDataModule):
         self.batch_size=batch_size
         self.prefetch_factor=prefetch_factor
         self.split=train_val_split
+        self.config=config
 
     def prepare_data(self):
         ''' Checks if data is present '''
@@ -62,8 +65,8 @@ class DataModule(LightningDataModule):
     def setup(self):
         ''' Setup train and val dataset using predefined class module'''
         split_val=len(self.data)*self.split
-        self.train_dataset=TokenisedDataset(self.data[:split_val])
-        self.val_dataset=TokenisedDataset(self.data[split_val:])
+        self.train_dataset=TokenisedDataset(self.data[:split_val],self.config)
+        self.val_dataset=TokenisedDataset(self.data[split_val:],self.config)
 
     def train_dataloader(self):
         ''' Returns Train Dataloader'''

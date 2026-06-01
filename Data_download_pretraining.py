@@ -1,4 +1,3 @@
-import multiprocessing
 import numpy as np
 import os
 from tqdm import tqdm
@@ -29,13 +28,13 @@ def climbmix_1bil():
         for row in ds:
             tokenised=tok.encode(row)
             batch_count=len(tokenised.ids)
-            count+=batch_count
+            count+=batch_count+2
 
             pbar.update(batch_count+2)
-            lst.append([tok.bos_token]+tokenised.ids+[tok.eos_token])
+            lst.extend([tok.bos_token]+tokenised.ids+[tok.eos_token])
 
             if count>=100_000_000:
-                lst=np.array(lst,dtype=np.int16)
+                lst=np.array(lst,dtype=np.uint16)
                 np.save(os.path.join(DATA_DIR,f"shard_{shards+1:02d}.npy"),lst)
                 lst=[]
                 count=0
@@ -43,8 +42,3 @@ def climbmix_1bil():
 
             if shards>=10:
                 break
-
-
-
-    
-    

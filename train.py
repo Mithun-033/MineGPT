@@ -1,6 +1,6 @@
 from Model_Classes import GPT
 from Optimizer import Hybrid_Optim_with_Cosine_Scheduler,HybridOptim
-from HyperParam_Classes import GPTConfig
+from HyperParam_Classes import Config as GPTConfig
 from HyperParam_Classes import TrainParams,OptimHParams
 import lightning.pytorch as pl
 from torchinfo import summary
@@ -104,6 +104,6 @@ def run_training(model,DataModule):
 
 if __name__=="__main__":
     model=GPT(GPTConfig)
-    Datamodule=DataModule(file_path="tokenized_data.npy",train_val_split=0.97)
+    Datamodule=DataModule(file_path="tokenized_data.npy",train_val_split=0.97,config=GPTConfig)
     run_training(model,Datamodule)
 
