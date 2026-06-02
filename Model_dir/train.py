@@ -1,4 +1,5 @@
 import torch
+import os
 from Model_dir.Model_Classes import GPT
 from Model_dir.Optimizer import Hybrid_Optim_with_Cosine_Scheduler,HybridOptim
 from Model_dir.HyperParam_Classes import Config as GPTConfigClass
@@ -23,11 +24,11 @@ class Train_Model(pl.LightningModule):
         self.DataModule=DataModule
         self.model=GPT(config)
         
-        try:
-            self.model = torch.compile(self.model)
-        except Exception:
-            print("Torch Compile is not available in your current PyTorch version.")
-            pass
+        if os.getenv("MINEGPT_ENABLE_COMPILE", "0") == "1":
+            try:
+                self.model = torch.compile(self.model)
+            except Exception:
+                print("Torch Compile is not available in your current PyTorch version.")
         self.loss_fn=nn.CrossEntropyLoss()
         self.config=config
         self._hybrid_scheduler = None
@@ -70,7 +71,7 @@ class Train_Model(pl.LightningModule):
         self.log("lr", self._hybrid_scheduler.curr_lr, prog_bar=True)
         return loss
     
-    def validation_step(self,batch):
+    def validation_step(self,batch,batch_idx=None):
         ''' Calls the forward function and calculates the loss for a batch of validation data.
         Args:            
             batch (Tensor): A batch of input-output pairs of shape (B,T) where B is the batch size and T is the context window length.

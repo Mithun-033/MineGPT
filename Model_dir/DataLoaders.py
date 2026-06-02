@@ -2,6 +2,7 @@ from torch.utils.data import DataLoader, Dataset
 from lightning.pytorch import LightningDataModule
 import os
 import numpy as np
+import torch
 
 
 class TokenisedDataset(Dataset):
@@ -18,13 +19,13 @@ class TokenisedDataset(Dataset):
         
     def __len__(self):
         ''' Returns the length of dataset'''
-        return len(self.data)
+        return max(0, len(self.data) - self.cwl)
     
     def __getitem__(self,idx):
         '''Returns the input-output pair'''
         x=self.data[idx:idx+self.cwl]
         y=self.data[idx+1:idx+self.cwl+1]
-        return x,y
+        return torch.from_numpy(np.array(x, copy=True)), torch.from_numpy(np.array(y, copy=True))
     
 
 class DataModule(LightningDataModule):
