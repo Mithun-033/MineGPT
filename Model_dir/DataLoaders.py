@@ -2,6 +2,7 @@ from torch.utils.data import DataLoader, Dataset
 from lightning.pytorch import LightningDataModule
 import os
 import numpy as np
+from HyperParam_Classes import TrainParams
 
 class TokenisedDataset(Dataset):
     ''' A Dataset wrapped class module to return tokenized input-output pairs'''
@@ -29,7 +30,7 @@ class TokenisedDataset(Dataset):
 class DataModule(LightningDataModule):
     ''' Class wrapped around Lightning Data Module to return Train/Val DataLoaders'''
     def __init__(self,file_path,train_val_split,num_workers=2,pin_memory=True,persistent_workers=True,
-                 batch_size=32,prefetch_factor=2,config=None):
+                 batch_size=TrainParams.batch_size,prefetch_factor=2,config=None):
         '''
         Initialises the DataModule.
         

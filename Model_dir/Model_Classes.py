@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
@@ -9,7 +10,36 @@ import math
 class RopeEmbedding(nn.Module):
     def __init__(self,config):
         super().__init__()
-        ...
+
+        assert config.head_size % 2 == 0, "RoPE requires an even head size"
+
+        self.head_size = config.head_size
+        self.max_seq_len = config.cwl
+
+        inv_freq = 1.0 / (
+            10000 ** (torch.arange(0, self.head_size, 2, dtype=torch.float32) / self.head_size)
+        )
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
+
+    def _apply_rope(self, x, cos, sin):
+        x_even = x[..., ::2]
+        x_odd = x[..., 1::2]
+
+        x_rope = torch.stack((x_even * cos - x_odd * sin, x_even * sin + x_odd * cos), dim=-1)
+        return x_rope.flatten(-2)
+
+    def forward(self, q, k):
+        seq_len = q.size(1)
+        device = q.device
+
+        positions = torch.arange(seq_len, device=device, dtype=self.inv_freq.dtype)
+        freqs = torch.einsum("i,j->ij", positions, self.inv_freq)
+        cos = freqs.cos()[None, :, None, :]
+        sin = freqs.sin()[None, :, None, :]
+
+        q = self._apply_rope(q, cos, sin)
+        k = self._apply_rope(k, cos, sin)
+        return q, k
 
 #=================================================================================
 #  Multi-Head Attention Block
@@ -38,7 +68,7 @@ class MultiHeadAttention(nn.Module):
         self.k_norm=nn.RMSNorm(config.head_size,eps=1e-5)
 
         self.proj=nn.Linear(config.head_size*config.num_heads,config.d_model,bias=False)
-        self.rope=RopeEmbedding()
+        self.rope=RopeEmbedding(config)
 
     def forward(self,x):
         ''' 
@@ -92,6 +122,7 @@ class Mlp(nn.Module):
                 -> d_model (int)
                 -> hidden_size (int)
         '''
+        super().__init__()
         self.up_proj=nn.Linear(config.d_model,config.hidden,bias=False)
         self.down_proj=nn.Linear(config.hidden,config.d_model,bias=False)
 
@@ -124,7 +155,7 @@ class Block(nn.Module):
                 -> d_model (int)
                 -> num_layer (int)
         '''
-
+        super().__init__()
         self.PreNorm1=nn.RMSNorm(config.d_model,eps=1e-5)
         self.attention=MultiHeadAttention(config)
         self.PreNorm2=nn.RMSNorm(config.d_model,eps=1e-5)

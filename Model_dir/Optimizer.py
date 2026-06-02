@@ -1,6 +1,6 @@
 import math
 import torch.optim as optim
-from HyperParam_Classes import OptimHParams
+from Model_dir.HyperParam_Classes import OptimHParams
 
 
 class HybridOptim():
