@@ -275,8 +275,8 @@ Training is orchestrated through PyTorch Lightning using dedicated Lightning Mod
 
 | Tokenizer | Vocabulary Size |
 |------------|----------------|
-| tokenizer_16k.json | 16,000 |
-| tokenizer_32k.json | 32,000 |
+| tokenizer_16k.json | 16,384 |
+| tokenizer_32k.json | 32,768 |
 
 These tokenizers can be used directly for pretraining, finetuning, and inference workflows.
 
