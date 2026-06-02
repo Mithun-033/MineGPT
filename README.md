@@ -229,13 +229,9 @@ Input
 Output
 ```
 
-Residual branches are scaled according to:
+Residual branches are scaled by a factor of 1 / √(2L),
 
-\[
-\frac{1}{\sqrt{2L}}
-\]
-
-where \(L\) is the number of transformer layers.
+where L is the number of transformer layers.
 
 ---
 
