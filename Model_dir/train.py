@@ -67,7 +67,16 @@ class Train_Model(pl.LightningModule):
 
         self._hybrid_scheduler.zero_grad()
         self.manual_backward(loss)
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+        self.clip_gradients(
+            self._hybrid_scheduler.optim.opt1,
+            gradient_clip_val=1.0,
+            gradient_clip_algorithm="norm",
+        )
+        self.clip_gradients(
+            self._hybrid_scheduler.optim.opt2,
+            gradient_clip_val=1.0,
+            gradient_clip_algorithm="norm",
+        )
         self._hybrid_scheduler.step()
         self.log("lr", self._hybrid_scheduler.curr_lr, prog_bar=True)
         return loss
@@ -124,13 +133,14 @@ def run_training(model,DataModule,tp):
         accumulate_grad_batches=tp.grad_batches,
         enable_checkpointing=True,
         default_root_dir=checkpoint_dir,
-        logging=True
+        logger=True
 
     )
     trainer.fit(model,DataModule)
-    state_dict_path = os.path.join(checkpoint_dir, "minegpt_state_dict.pt")
-    torch.save(model.state_dict(), state_dict_path)
-    print(f"Saved model state_dict to {state_dict_path}")
+    if trainer.is_global_zero:
+        state_dict_path = os.path.join(checkpoint_dir, "minegpt_state_dict.pt")
+        torch.save(model.state_dict(), state_dict_path)
+        print(f"Saved model state_dict to {state_dict_path}")
     
 
 if __name__=="__main__":
