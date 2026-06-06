@@ -393,7 +393,7 @@ class GPT(nn.Module):
         self.blocks=nn.ModuleList([Block(config,i+1) for i in range(config.num_layers)])
         self.final_norm=nn.RMSNorm(config.d_model,eps=1e-5)
         self.lm_head=nn.Linear(config.d_model,config.vocab_size,bias=False)
-        self.value_embeddings=nn.ModuleList([nn.Embedding(config.config.vocab_size,config.d_model) if has_ve(config.num_layers,i+1) else None for i in range(config.num_layers) ])
+        self.value_embeddings=nn.ModuleList([nn.Embedding(config.vocab_size,config.d_model) if has_ve(config.num_layers,i+1) else None for i in range(config.num_layers) ])
         self.lm_head.weight=self.embed.weight # Weights tying
         self.apply(self._init_weights)
 
@@ -419,10 +419,15 @@ class GPT(nn.Module):
         x_og=x.clone()
         x=self.embed(x) 
         # x.shape = (B,T,C)
+        
         for i in range(len(self.blocks)):
             block=self.blocks[i]
-            val_emb=self.value_embeddings[i](x_og)
+            if self.value_embeddings[i] is not None:
+                val_emb=self.value_embeddings[i](x_og)
+            else:
+                val_emb=None
             x=block(x,val_emb)
+
         x=self.final_norm(x)
         x=self.lm_head(x)
         return x
