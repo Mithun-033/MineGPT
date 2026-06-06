@@ -188,9 +188,8 @@ class MultiHeadAttention(nn.Module):
         q=self.q_norm(q)
         k=self.k_norm(k)
 
-        if ve is None:
-            ve = v
-        elif self.ve_gate is not None:
+        if ve is not None:
+            ve=ve.view(B,T,self.config.num_heads,self.config.head_size)
             gate = 3*torch.sigmoid(
                 self.ve_gate(x[...,:self.config.value_embed_rank])
             )
@@ -208,7 +207,7 @@ class MultiHeadAttention(nn.Module):
 
         out=out.transpose(1,2).reshape(B,T,self.n_head*self.head_size)
 
-        return self.proj(out),ve
+        return self.proj(out)
 
 #=================================================================================
 #  MLP Layer
@@ -334,10 +333,10 @@ class Block(nn.Module):
         Returns:
             Tensor of shape (B,T,C)
         '''
-        logits,ve=self.attention(self.PreNorm1(x),ve)
+        logits=self.attention(self.PreNorm1(x),ve)
         x=x+self.scale*logits
         x=x+self.scale*self.Mlp(self.PreNorm2(x))
-        return x,ve
+        return x
     
 #=================================================================================
 #  GPT Model
@@ -394,7 +393,7 @@ class GPT(nn.Module):
         self.blocks=nn.ModuleList([Block(config,i+1) for i in range(config.num_layers)])
         self.final_norm=nn.RMSNorm(config.d_model,eps=1e-5)
         self.lm_head=nn.Linear(config.d_model,config.vocab_size,bias=False)
-
+        self.value_embeddings=nn.ModuleList([nn.Embedding(config.config.vocab_size,config.d_model) if has_ve(config.num_layers,i+1) else None for i in range(config.num_layers) ])
         self.lm_head.weight=self.embed.weight # Weights tying
         self.apply(self._init_weights)
 
@@ -417,10 +416,13 @@ class GPT(nn.Module):
         Returns:
             Tensor of shape (B,T,vocab_size)
         '''
+        x_og=x.clone()
         x=self.embed(x) 
-        ve=None   # x.shape = (B,T,C)
-        for block in self.blocks:
-            x,ve=block(x,ve)
+        # x.shape = (B,T,C)
+        for i in range(len(self.blocks)):
+            block=self.blocks[i]
+            val_emb=self.value_embeddings[i](x_og)
+            x=block(x,val_emb)
         x=self.final_norm(x)
         x=self.lm_head(x)
         return x
