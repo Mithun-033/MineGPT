@@ -79,7 +79,7 @@ def mine_wiki():
 
     with tqdm(desc="Mine_wiki", unit="Tokens", mininterval=0.1,miniters=1) as pbar:    
         for row in ds:
-            tokenized=tok.encode(row["question"]+"\n"+row["answer"]).ids
+            tokenized=tok.encode("Question :"+row["question"]+"\n"+"Answer :"+row["answer"]).ids
             batch_count=len(tokenized)
             count+=batch_count+2
             lst.extend([2]+tokenized+[3])
@@ -110,7 +110,7 @@ def mine_qa():
     
     with tqdm(desc="Mine_q_a", unit="Tokens", mininterval=0.1,miniters=1) as pbar:    
         for row in ds:
-            tokenized=tok.encode(row["question"]+"\n"+row["answer"]).ids
+            tokenized=tok.encode("Question :"+row["question"]+"\n"+"Answer :"+row["answer"]).ids
             batch_count=len(tokenized)
             count+=batch_count+2
             lst.extend([2]+tokenized+[3])
