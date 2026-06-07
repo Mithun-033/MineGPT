@@ -39,9 +39,6 @@ def climbmix_2bil():
         for row in ds:
             tokenised=tok.encode(row["text"]).ids
             batch_count=len(tokenised)
-
-            if batch_count>=1022:
-                continue
             
             count+=batch_count+2
             
