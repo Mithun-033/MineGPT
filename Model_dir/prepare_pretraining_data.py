@@ -26,6 +26,7 @@ def climbmix_2bil():
     '''
     target=2_000_000_000
     count=0
+    shard=1
 
     lst=[]
 
@@ -47,9 +48,13 @@ def climbmix_2bil():
             pbar.update(batch_count+2)
             lst.extend([2]+tokenised+[3])
 
-            if count>=target:
+            if count>=target//10:
                 print("Total tokens (Climbmix) :",count)
-                np.save(os.path.join(DATA_DIR,"climbmix.npy"),np.array(lst,dtype=np.uint16))
+                np.save(os.path.join(DATA_DIR,f"climbmix_{shard}.npy"),np.array(lst,dtype=np.uint16))
+                shard+=1
+                lst=[]
+            
+            if count>=target:
                 break
 
 #-----------------------------------------------------------------------------------------
