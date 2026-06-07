@@ -53,8 +53,10 @@ def climbmix_2bil():
                 np.save(os.path.join(DATA_DIR,f"climbmix_{shard}.npy"),np.array(lst,dtype=np.uint16))
                 shard+=1
                 lst=[]
+                print(f"Saved shard {shard-1} with {count} tokens.")
+                count=0
             
-            if count>=target:
+            if shard>10:
                 break
 
 #-----------------------------------------------------------------------------------------
