@@ -1,7 +1,5 @@
-import math
 import torch.optim as optim
-from Model_dir.HyperParam_Classes import OptimHParams
-
+import torch
 
 class HybridOptim():
     ''' 
@@ -32,28 +30,28 @@ class HybridOptim():
         '''
         assert hasattr(optim,"Muon") , "Update torch to 2.10+ to use torch.optim.Muon"
 
-        self.AdamW=[]
-        self.Muon=[]
+        self.AdamW_params=[]
+        self.Muon_params=[]
 
         for name,param in model.named_parameters():
             if not param.requires_grad:
                 continue
             if "embed" in name or "lm_head" in name:
-                self.AdamW.append(param)
+                self.AdamW_params.append(param)
             elif param.ndim>=2:
-                self.Muon.append(param)
+                self.Muon_params.append(param)
             else:
-                self.AdamW.append(param)
+                self.AdamW_params.append(param)
 
         self.config=OptimHParams()
         self.opt1=optim.AdamW(
-            self.AdamW,
+            self.AdamW_params,
             lr=self.config.lr,
             weight_decay=self.config.weight_decay,
-            fused=True
+            fused=True if torch.cuda.is_available() else False
         )
         self.opt2=optim.Muon(
-            self.Muon,
+            self.Muon_params,
             lr=self.config.lr,
             weight_decay=self.config.weight_decay,
             adjust_lr_fn="match_rms_adamw"
@@ -113,6 +111,15 @@ class HybridOptim():
         self.Adamw.step()
         self.Muon.step()
 
+    def state_dict(self) -> dict:
+        ''' Returns the state dict of both optimizers and schedulers'''
+
+        return {
+            "opt1":self.opt1.state_dict(),
+            "opt2":self.opt2.state_dict(),
+            "Adamw":self.Adamw.state_dict(),
+            "Muon":self.Muon.state_dict()
+        }
 
 
 
