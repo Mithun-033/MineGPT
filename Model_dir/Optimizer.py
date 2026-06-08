@@ -1,7 +1,5 @@
-import math
 import torch.optim as optim
-from Model_dir.HyperParam_Classes import OptimHParams
-
+import torch
 
 class HybridOptim():
     ''' 
@@ -21,7 +19,7 @@ class HybridOptim():
     Basically any param with dim>=2 --> Muon (Other than embeddings and lm_head),
     While params with dim<2 --> AdamW.
     '''
-    def __init__(self,model):
+    def __init__(self,model,OptimHParams,total_steps):
         '''
         Initialising the class.
         
@@ -32,39 +30,71 @@ class HybridOptim():
         '''
         assert hasattr(optim,"Muon") , "Update torch to 2.10+ to use torch.optim.Muon"
 
-        self.AdamW=[]
-        self.Muon=[]
+        self.AdamW_params=[]
+        self.Muon_params=[]
 
         for name,param in model.named_parameters():
             if not param.requires_grad:
                 continue
             if "embed" in name or "lm_head" in name:
-                self.AdamW.append(param)
+                self.AdamW_params.append(param)
             elif param.ndim>=2:
-                self.Muon.append(param)
+                self.Muon_params.append(param)
             else:
-                self.AdamW.append(param)
+                self.AdamW_params.append(param)
+
         self.config=OptimHParams()
         self.opt1=optim.AdamW(
-            self.AdamW,
+            self.AdamW_params,
             lr=self.config.lr,
             weight_decay=self.config.weight_decay,
-            fused=True
+            fused=True if torch.cuda.is_available() else False
         )
-
         self.opt2=optim.Muon(
-            self.Muon,
+            self.Muon_params,
             lr=self.config.lr,
             weight_decay=self.config.weight_decay,
             adjust_lr_fn="match_rms_adamw"
         )
 
+        self.scheduler_adam1=optim.lr_scheduler.LinearLR(
+            self.opt1,
+            start_factor=0.2,
+            total_iters=int(0.1 * total_steps),
+        )
+        self.scheduler_adam2=optim.lr_scheduler.CosineAnnealingLR(
+            self.opt1,
+            T_max=int(total_steps*0.9),
+            eta_min=self.config.final_lr
+        )
+        self.scheduler_muon1=optim.lr_scheduler.LinearLR(
+            self.opt2,
+            start_factor=0.2,
+            total_iters=int(0.1 * total_steps),
+        )
+        self.scheduler_muon2=optim.lr_scheduler.CosineAnnealingLR(
+            self.opt2,
+            T_max=int(total_steps*0.9),
+            eta_min=self.config.final_lr
+        )
+        self.Adamw=optim.lr_scheduler.SequentialLR(
+            self.opt1,
+            schedulers=[self.scheduler_adam1,self.scheduler_adam2],
+            milestones=[int(0.1 * total_steps)]
+        )
+        self.Muon=optim.lr_scheduler.SequentialLR(
+            self.opt2,
+            schedulers=[self.scheduler_muon1,self.scheduler_muon2],
+            milestones=[int(0.1 * total_steps)]
+        )
+
+
     def Count(self) -> None:
         '''Prints the count of parameters in each optimizer'''
 
         print("-------------------------------------")
-        print(f'AdamW Param Count :{len(self.AdamW)}')
-        print(f'Muon Param Count :{len(self.Muon)} ')
+        print(f'AdamW Param Count :{len(self.opt1.param_groups[0]["params"])}')
+        print(f'Muon Param Count :{len(self.opt2.param_groups[0]["params"])} ')
         print("-------------------------------------")
 
     def zero_grad(self) -> None:
@@ -78,54 +108,18 @@ class HybridOptim():
 
         self.opt1.step()
         self.opt2.step()
+        self.Adamw.step()
+        self.Muon.step()
 
-class Hybrid_Optim_with_Cosine_Scheduler():
-    ''' Class module for a hybrid optimizer with a cosine annealing learning rate scheduler with warmup.'''
-    def __init__(self,model,Optim,OptimHParams,total_steps,warmup_steps):
-        ''' 
-        Initialising the class.
+    def state_dict(self) -> dict:
+        ''' Returns the state dict of both optimizers and schedulers'''
 
-        Args:
-            model (GPT Class Object)
-            Optim (HybridOptim Class)
-            OptimHParams (OptimHParams Dataclass Object)
-            total_steps (int): Total number of training steps (epochs*steps_per_epoch)
-            warmup_steps (int): Number of warmup steps for learning rate scheduler
-        '''
-
-        self.optim = Optim(model)
-        self.opt1 = self.optim.opt1
-        self.opt2 = self.optim.opt2
-
-        if isinstance(OptimHParams, type):
-            OptimHParams = OptimHParams()
-
-        self.inital_lr=OptimHParams.lr
-        self.final_lr=OptimHParams.final_lr
-        self.curr_lr=self.inital_lr
-        self.total_steps=total_steps
-        self.warmup_steps=warmup_steps
-        self.current_step=0
-
-    def step(self):
-        ''' Updates the learning rate according to the cosine annealing schedule and then calls the step function of the optimizer.'''
-        if self.current_step<self.warmup_steps:
-            self.curr_lr=self.inital_lr*(self.current_step+1)/self.warmup_steps
-        else:
-            self.curr_lr=self.final_lr+(self.curr_lr-self.final_lr)*((1+math.cos((math.pi*(self.current_step+1))/self.total_steps))/(1+math.cos(math.pi*self.current_step/self.total_steps)))
-                        
-        for param_group in self.optim.opt1.param_groups:
-            param_group["lr"]=self.curr_lr
-        
-        for param_group in self.optim.opt2.param_groups:
-            param_group["lr"]=self.curr_lr
-
-        self.current_step+=1
-        self.optim.step()
-
-    def zero_grad(self):
-        ''' Clears the Gradient of previous batch'''
-        self.optim.zero_grad()
+        return {
+            "opt1":self.opt1.state_dict(),
+            "opt2":self.opt2.state_dict(),
+            "Adamw":self.Adamw.state_dict(),
+            "Muon":self.Muon.state_dict()
+        }
 
 
 

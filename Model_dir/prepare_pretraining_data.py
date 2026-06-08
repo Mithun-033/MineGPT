@@ -11,7 +11,7 @@ minecraft_path2="minhaozhang/minecraft-question-answer-630k"
 DATA_DIR="Pre_train_data"
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"]="1"
 
-tok=Tokenizer.from_file("tokenizers_dir/tokenizer_32k.json")
+tok=Tokenizer.from_file("MineGPT/tokenizers_dir/tokenizer_32k.json")
 
 #-----------------------------------------------------------------------------------------
 # ClimbMix 2 Billion Tokens Dataset
@@ -26,6 +26,7 @@ def climbmix_2bil():
     '''
     target=2_000_000_000
     count=0
+    shard=1
 
     lst=[]
 
@@ -38,18 +39,20 @@ def climbmix_2bil():
         for row in ds:
             tokenised=tok.encode(row["text"]).ids
             batch_count=len(tokenised)
-
-            if batch_count>=1022:
-                continue
             
             count+=batch_count+2
             
             pbar.update(batch_count+2)
             lst.extend([2]+tokenised+[3])
 
-            if count>=target:
-                print("Total tokens (Climbmix) :",count)
-                np.save(os.path.join(DATA_DIR,"climbmix.npy"),np.array(lst,dtype=np.uint16))
+            if count>=target//10:
+                np.save(os.path.join(DATA_DIR,f"climbmix_{shard}.npy"),np.array(lst,dtype=np.uint16))
+                shard+=1
+                lst=[]
+                print(f"Saved shard {shard-1} with {count} tokens.")
+                count=0
+            
+            if shard>10:
                 break
 
 #-----------------------------------------------------------------------------------------
@@ -73,7 +76,7 @@ def mine_wiki():
 
     with tqdm(desc="Mine_wiki", unit="Tokens", mininterval=0.1,miniters=1) as pbar:    
         for row in ds:
-            tokenized=tok.encode(row["question"]+"\n"+row["answer"]).ids
+            tokenized=tok.encode("Question :"+row["question"]+"\n"+"Answer :"+row["answer"]).ids
             batch_count=len(tokenized)
             count+=batch_count+2
             lst.extend([2]+tokenized+[3])
@@ -104,7 +107,7 @@ def mine_qa():
     
     with tqdm(desc="Mine_q_a", unit="Tokens", mininterval=0.1,miniters=1) as pbar:    
         for row in ds:
-            tokenized=tok.encode(row["question"]+"\n"+row["answer"]).ids
+            tokenized=tok.encode("Question :"+row["question"]+"\n"+"Answer :"+row["answer"]).ids
             batch_count=len(tokenized)
             count+=batch_count+2
             lst.extend([2]+tokenized+[3])
@@ -116,6 +119,7 @@ def mine_qa():
     print(f"Total Tokens (Mine-QA): {count}")
 
 if __name__=="__main__":
+    os.makedirs(DATA_DIR,exist_ok=True)
     print("Starting Preprocessing...")
 
     print("Downloading Climbmix...")
