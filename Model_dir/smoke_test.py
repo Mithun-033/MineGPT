@@ -10,5 +10,4 @@ model=GPT(Config()).to(device)
 
 model(torch.randint(0,32786,(1,1024)).to(device))
 print("Input passed through the model successfully!")
-
-print(summary(model,input_size=(1,1024),dtypes=[torch.long],device=device))
+summary(model,input_size=(1,1024),dtypes=[torch.long],device=device)

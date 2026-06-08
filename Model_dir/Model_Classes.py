@@ -136,7 +136,7 @@ class MultiHeadAttention(nn.Module):
                 -> num_heads (int): Number of attention heads
 
         Attributes:
-            qkv (nn.Linear): Linear projection to 3x hidden dimension
+            q, k, v (nn.Linear): Linear layers for query, key, value projections
             q_norm, k_norm (nn.RMSNorm): Per-head normalization layers
             proj (nn.Linear): Output projection layer
             rope (RopeEmbedding): Rotary positional embedding module
@@ -150,7 +150,10 @@ class MultiHeadAttention(nn.Module):
         self.config=config
         assert config.head_size*config.num_heads==config.d_model," Dims don't match, check Config params "
 
-        self.qkv=nn.Linear(config.d_model,3*config.head_size*config.num_heads,bias=False)
+        self.q=nn.Linear(config.d_model,config.num_heads*config.head_size,bias=False)
+        self.k=nn.Linear(config.d_model,config.kv_heads*config.head_size,bias=False)
+        self.v=nn.Linear(config.d_model,config.kv_heads*config.head_size,bias=False)
+
         self.q_norm=nn.RMSNorm(config.head_size,eps=1e-5)
         self.k_norm=nn.RMSNorm(config.head_size,eps=1e-5)
 
@@ -177,16 +180,23 @@ class MultiHeadAttention(nn.Module):
         '''
         B,T,C=x.shape
 
-        qkv=self.qkv(x)
-        # split into q,k,v triplet along last dim
-        q,k,v = qkv.chunk(3, dim=-1)
+        q=self.q(x)
+        k=self.k(x)
+        v=self.v(x)
 
         q=q.view(B,T,self.config.num_heads,self.config.head_size)
-        k=k.view(B,T,self.config.num_heads,self.config.head_size)
-        v=v.view(B,T,self.config.num_heads,self.config.head_size)
+        k=k.view(B,T,self.config.kv_heads,self.config.head_size)
+        v=v.view(B,T,self.config.kv_heads,self.config.head_size)
 
         q=self.q_norm(q)
         k=self.k_norm(k)
+
+        q,k=self.rope(q,k)
+        
+        ratio=self.config.num_heads//self.config.kv_heads
+
+        k=k.repeat_interleave(ratio,dim=2)
+        v=v.repeat_interleave(ratio,dim=2)
 
         if ve is not None:
             ve=ve.view(B,T,self.config.num_heads,self.config.head_size)
@@ -194,8 +204,6 @@ class MultiHeadAttention(nn.Module):
                 self.ve_gate(x[...,:self.config.value_embed_rank])
             )
             v = v + gate.unsqueeze(-1)*ve
-
-        q,k=self.rope(q,k)
 
         q=q.transpose(1,2)
         k=k.transpose(1,2)
@@ -393,7 +401,7 @@ class GPT(nn.Module):
         self.blocks=nn.ModuleList([Block(config,i+1) for i in range(config.num_layers)])
         self.final_norm=nn.RMSNorm(config.d_model,eps=1e-5)
         self.lm_head=nn.Linear(config.d_model,config.vocab_size,bias=False)
-        self.value_embeddings=nn.ModuleList([nn.Embedding(config.vocab_size,config.d_model) if has_ve(config.num_layers,i+1) else None for i in range(config.num_layers) ])
+        self.value_embeddings=nn.ModuleList([nn.Embedding(config.vocab_size,config.d_model) if has_ve(config.num_layers,i+1) else None for i in range(config.num_layers)])
         self.lm_head.weight=self.embed.weight # Weights tying
         self.apply(self._init_weights)
 
