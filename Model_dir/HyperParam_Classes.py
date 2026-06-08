@@ -24,10 +24,11 @@ class Config:
         vocab_size (int): Size of vocabulary for token embeddings
     """
     cwl : int = 1024
-    d_model : int = 768
-    num_layers : int = 20
+    d_model : int = 1024
+    num_layers : int = 18
     head_size : int = 64
-    num_heads : int = 12
+    num_heads : int = 16
+    kv_heads: int = 4
     hidden : int = d_model*4
     vocab_size : int = 32_786
     value_embed_rank : int = 16
