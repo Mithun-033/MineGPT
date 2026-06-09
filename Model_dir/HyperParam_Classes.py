@@ -74,5 +74,5 @@ class TrainParams:
     epochs : int = 1
     batch_size : int = 32
     grad_batches : int = 512
-    num_workers : int = os.cpu_count()//2
+    num_workers : int = 4
     pre_fetch_factor : int = 3
