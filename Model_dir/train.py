@@ -57,7 +57,7 @@ def get_optimizer(model, tp, op, gp):
     )
     return optimizer
 
-def train():
+def train(Model):
     '''Main training loop for the GPT model.
     This function initializes the model, optimizer, and data loaders, 
     and then iterates through the training data to perform optimization steps. 
@@ -67,9 +67,8 @@ def train():
     gp=Config()
     op=OptimHParams()
 
-    model=GPT(gp).to(device)
+    model=Model.to(device)
     model=torch.compile(model).to(device)
-    print(summary(model,input_size=(tp.batch_size,gp.cwl),dtypes=[torch.long]))
 
     optimizer=get_optimizer(model,tp,op,gp)
     loss_fn=nn.CrossEntropyLoss()
@@ -148,7 +147,9 @@ def train():
                         f.write("\n")
 
 if __name__=="__main__":
-    train()
+    model=GPT(Config())
+    summary(model,input_size=(1,Config().cwl),dtypes=[torch.long])
+    train(model)
 
 
 
