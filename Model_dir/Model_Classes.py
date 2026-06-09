@@ -201,7 +201,7 @@ class MultiHeadAttention(nn.Module):
         k=k.repeat_interleave(ratio,dim=2)
         v=v.repeat_interleave(ratio,dim=2)
 
-        if ve is not None:
+        if self.ve_gate is not None :
             ve=ve.view(B,T,self.config.num_heads,self.config.head_size)
             gate = 3*torch.sigmoid(
                 self.ve_gate(x[...,:self.config.value_embed_rank])
@@ -433,10 +433,12 @@ class GPT(nn.Module):
         
         for i in range(len(self.blocks)):
             block=self.blocks[i]
+
             if self.value_embeddings[i] is not None:
                 val_emb=self.value_embeddings[i](x_og)
             else:
-                val_emb=None
+                val_emb=torch.zeros_like(x)
+
             x=block(x,val_emb)
 
         x=self.final_norm(x)
