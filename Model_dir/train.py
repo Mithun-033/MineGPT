@@ -52,8 +52,8 @@ def get_optimizer(model, tp, op, gp):
 
     optimizer = HybridOptim(
         model=model,
-        OptimHParams=op,
-        total_steps=tp.total_steps
+        OptimHParams=OptimHParams,
+        total_steps=2_000_000_000 // (tp.grad_batches * gp.cwl)
     )
     return optimizer
 
