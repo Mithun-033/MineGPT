@@ -8,84 +8,87 @@ import math
 #=================================================================================
 
 class RopeEmbedding(nn.Module):
-    """Applies Rotary Positional Embeddings (RoPE) to q and k tensors.
+    """Applies Rotary Positional Embeddings (RoPE) to query and key tensors.
 
-    This implementation follows the standard RoPE formulation used in
-    transformer variants where half the head dimensions are treated as
-    interleaved sin/cos pairs and rotated by position-dependent angles.
+    RoPE rotates pairs of dimensions in each attention head by an angle that
+    depends on the token position. This injects positional information directly
+    into the attention mechanism while preserving relative position properties.
 
-    Behaviour and shapes
-    - Expects `q` and `k` with shape (B, T, num_heads, head_size).
-    - `head_size` must be even (pairs of dimensions).
-    - Uses `config.cwl` as the maximum context/window length to precompute
-      inverse frequencies; however frequencies are computed lazily per-call
-      based on actual `T` so the buffer only stores `inv_freq`.
+    Expected input shape:
+        (batch_size, seq_len, num_heads, head_size)
 
-    Implementation notes
-    - `inv_freq` is registered as a buffer so it moves with the module
-      between devices and is saved/loaded with the state dict.
-    - `_apply_rope` performs the interleaved rotation on the last dimension.
+    Notes:
+        - head_size must be even because dimensions are processed in pairs.
+        - The same rotation is applied to both queries and keys.
     """
 
     def __init__(self, config):
         super().__init__()
 
-        # RoPE needs an even head dimension so we can form (cos,sin) pairs.
         assert config.head_size % 2 == 0, "RoPE requires an even head size"
 
-        self.head_size = config.head_size
-        # saved for compatibility / external checks; not strictly required here
-        self.max_seq_len = getattr(config, "cwl", None)
+        self.head_size=config.head_size
 
-        # inverse frequencies for rotary embeddings (every other dim)
-        inv_freq = 1.0 / (
-            10000 ** (torch.arange(0, self.head_size, 2, dtype=torch.float32) / self.head_size)
+        inv_freq=1.0/(
+            10000
+            ** (
+                torch.arange(0, self.head_size, 2, dtype=torch.float32)
+                / self.head_size
+            )
         )
 
-        # register as buffer so it moves with `.to(device)` and is included in state_dict
         self.register_buffer("inv_freq", inv_freq, persistent=False)
 
     def _apply_rope(self, x, cos, sin):
-        """Apply precomputed cos/sin to tensor `x`.
-
-        x: Tensor[..., head_size] where head_size is even (interleaved dim pairs).
-        cos, sin: tensors broadcastable to x[..., head_size/2]
-
-        Returns rotated tensor with same shape as `x`.
-        """
-        # split interleaved even/odd dims
-        x_even = x[..., ::2]
-        x_odd = x[..., 1::2]
-
-        # rotate: (x_even, x_odd) -> (x_even*cos - x_odd*sin, x_even*sin + x_odd*cos)
-        x_rope = torch.stack((x_even * cos - x_odd * sin, x_even * sin + x_odd * cos), dim=-1)
-
-        # flatten the last two dims back to head_size
-        return x_rope.flatten(-2)
-
-    def forward(self, q, k):
-        """Apply RoPE to `q` and `k` and return rotated (q,k).
+        """Rotate each pair of dimensions in x.
 
         Args:
-            q: Tensor of shape (B, T, num_heads, head_size)
-            k: Tensor of shape (B, T, num_heads, head_size)
+            x: Tensor of shape (B, T, H, D)
+            cos: Tensor broadcastable to (B, T, H, D/2)
+            sin: Tensor broadcastable to (B, T, H, D/2)
 
         Returns:
-            (q_rot, k_rot) with same shapes as inputs.
+            Tensor with the same shape as x after RoPE rotation.
         """
-        seq_len = q.size(1)
-        device = q.device
 
-        # positions [T] and outer-product with inv_freq -> [T, head_size/2]
-        positions = torch.arange(seq_len, device=device, dtype=self.inv_freq.dtype)
-        freqs = torch.einsum("i,j->ij", positions, self.inv_freq)
+        x_even=x[..., ::2]
+        x_odd=x[..., 1::2]
 
-        # expand to shape (1, T, 1, head_size/2) so it broadcasts over (B, T, num_heads, head_half)
-        cos = freqs.cos()[None, :, None, :]
-        sin = freqs.sin()[None, :, None, :]
+        rotated_even=x_even*cos - x_odd*sin
+        rotated_odd=x_even*sin + x_odd*cos
 
-        q = self._apply_rope(q, cos, sin)
-        k = self._apply_rope(k, cos, sin)
+        return torch.stack(
+            (rotated_even, rotated_odd),
+            dim=-1
+        ).flatten(-2)
+
+    def forward(self, q, k):
+        """Apply RoPE to query and key tensors.
+
+        Args:
+            q: Query tensor of shape (B, T, H, D)
+            k: Key tensor of shape (B, T, H, D)
+
+        Returns:
+            Tuple of rotated (q, k).
+        """
+
+        seq_len=q.size(1)
+
+        positions=torch.arange(
+            seq_len,
+            device=q.device,
+            dtype=self.inv_freq.dtype
+        )
+
+        angles=torch.outer(positions, self.inv_freq)
+
+        cos=angles.cos().view(1, seq_len, 1, -1)
+        sin=angles.sin().view(1, seq_len, 1, -1)
+
+        q=self._apply_rope(q, cos, sin)
+        k=self._apply_rope(k, cos, sin)
+
         return q, k
 
 #=================================================================================
@@ -115,7 +118,7 @@ class MultiHeadAttention(nn.Module):
     3. RoPE application for positional encoding
     4. Scaled dot product attention with causal mask
     5. XSA normalization to align attention outputs
-    6. VE (Vector Enhancement) mechanism adds gated residual input to key/value
+    6. VE (Vector Enhancement) mechanism adds learned embeddings to v based on input tokens
     7. Output projection back to d_model dimension
 
     Key features:
@@ -123,7 +126,7 @@ class MultiHeadAttention(nn.Module):
     - Applies RoPE to both query and key tensors
     - Implements causal masking for autoregressive generation
     - XSA mechanism normalizes output by aligned vector sum
-    - VE mechanism applies gated residual enhancement using value_embed_rank dimension
+    - VE mechanism applies enhancement using value_embed_rank dimension
 '''
     def __init__(self,config,layer_idx):
         '''
