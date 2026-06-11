@@ -65,7 +65,7 @@ class OptimHParams_FT:
         lr_decay (float): Decay factor applied to initial learning rate for fine-tuning
         final_lr (float): Final effective learning rate after decay for fine-tuning
     """
-    lr : float = 4e-5
+    lr : float = 3e-5
     weight_decay : int = 0.01
     lr_decay : float = 0.1
     final_lr : float = lr * lr_decay
