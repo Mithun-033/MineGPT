@@ -80,6 +80,7 @@ def train(Model):
 
     with tqdm(total=2_000_000_000, desc="Training", unit="Tokens") as pbar:
         opt_steps=0
+        batch_count=0
         for i in range(10):
             file_path=f"Pre_train_data/climbmix_{i+1}.npy"
             if val_dataloader is None:
@@ -87,7 +88,6 @@ def train(Model):
             else:
                 train_dataloader,_=get_dataloaders(gp, tp, file_path)
 
-            batch_count=0
             loss_sum=0
             start=time.time()
 
