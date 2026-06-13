@@ -1,12 +1,32 @@
-# MineGPT
+# SharpGPT
 
-<p align="center">
-  <img src="MineGPT2.png">
-</p>
+A GPT-style autoregressive language model implemented from scratch using PyTorch and PyTorch Lightning.
 
-MineGPT is a GPT-style autoregressive language model built from scratch using PyTorch and PyTorch Lightning. The project covers the complete language model development pipeline, including tokenizer training, dataset preparation, model implementation, custom optimization, training infrastructure, and domain-specific continued pretraining.
+The project covers tokenizer training, large-scale pretraining, Transformer architecture implementation, custom optimization, dataset preparation, and training infrastructure.
 
-The model is pretrained on **2 billion tokens from NVIDIA ClimbMix** and further trained on **Minecraft Wiki** and **Minecraft Question & Answer datasets** to specialize its knowledge in the Minecraft domain.
+SharpGPT is pretrained on **6 billion tokens of NVIDIA ClimbMix** and serves as a foundation for experimentation with modern language model architectures and efficient training techniques.
+
+---
+
+## Model Specifications
+
+| Parameter | Value |
+|------------|------------|
+| Architecture | Decoder-only Transformer |
+| Training Tokens | 6 Billion |
+| Context Length | 1,024 |
+| Layers | 18 |
+| Hidden Dimension | 1,024 |
+| Attention Heads | 16 |
+| KV Heads | 4 |
+| Head Dimension | 64 |
+| MLP Dimension | 4,096 |
+| Vocabulary Size | 32,786 |
+| Value Embedding Rank | 16 |
+| Backbone Parameters | ~195M |
+| Token Embeddings | ~69M |
+| Value Embeddings | ~300M |
+| Total Parameters | ~564M |
 
 ---
 
@@ -14,42 +34,41 @@ The model is pretrained on **2 billion tokens from NVIDIA ClimbMix** and further
 
 ### Architecture
 
-- Decoder-only GPT architecture
+- Decoder-only Transformer
 - Rotary Positional Embeddings (RoPE)
-- RMSNorm normalization
+- RMSNorm
 - Pre-Norm Transformer blocks
-- GQA with 4 kv heads & 16 Q heads
-- Flash Attention kernels when supported by hardware
+- Grouped Query Attention (GQA)
 - Query RMSNorm
 - Key RMSNorm
 - ReLU² feed-forward networks
-- DeepSeek style scaled Residual paths [1 / √(2L)]
-- Weight tying between token embeddings and output projection head
-- ALternate Layer value embeddings 
-
+- DeepSeek-style residual scaling
+- Alternate-layer value embeddings
+- Flash Attention support when available
 
 ### Training Infrastructure
+
 - Custom Muon–AdamW hybrid optimizer
-- PyTorch Lightning DataModule
-- Dataclass-driven hyperparameter management
+- PyTorch Lightning integration
+- Dataclass-based configuration system
 - Modular training pipeline
-- Reproducible experiment configuration
-- Modular optimizer implementation
+- Reproducible experiment setup
+- Custom learning rate scheduling
 
 ### Data Pipeline
 
-- Large-scale pretraining data preparation pipeline
-- Efficient tokenized dataset generation
+- Large-scale corpus preprocessing
+- Efficient token generation workflow
+- Streaming-compatible dataset preparation
 - Optimized PyTorch DataLoaders
-- Throughput-focused DataLoader configuration
-- Streaming-friendly preprocessing workflow
+- High-throughput batch generation
 
 ### Tokenization
 
 - Custom tokenizer training pipeline
 - 16K vocabulary tokenizer
 - 32K vocabulary tokenizer
-- Reusable tokenizer artifacts stored as JSON
+- Reusable tokenizer artifacts
 
 ---
 
@@ -57,25 +76,14 @@ The model is pretrained on **2 billion tokens from NVIDIA ClimbMix** and further
 
 ### Base Pretraining
 
-MineGPT is pretrained on:
-
-- **2 Billion Tokens of NVIDIA ClimbMix**
-
-### Continued Pretraining
-
-After base pretraining, the model undergoes additional Minecraft-focused training using:
-
-- Minecraft Wiki
-- Minecraft Question & Answer datasets
-
-This continued training improves performance on Minecraft-related terminology, mechanics, entities, crafting systems, and gameplay knowledge.
+- **6 Billion Tokens of NVIDIA ClimbMix**
 
 ---
 
 ## Repository Structure
 
 ```text
-MineGPT/
+Project/
 │
 ├── Model_dir/
 │   ├── DataLoaders.py
@@ -91,78 +99,16 @@ MineGPT/
 │   ├── Tokenizer_train.py
 │   ├── tokenizer_16k.json
 │   └── tokenizer_32k.json
-├── val_loss
-    ├── training_log.json
-    ├── val_delta_loss.png
-    ├── val_loss.png
-├── MineGPT2.png
+│
+├── val_loss/
+│   ├── training_log.json
+│   ├── val_delta_loss.png
+│   └── val_loss.png
+│
+├── model_architecture.png
 ├── LICENSE
 └── README.md
 ```
----
-
-## Component Overview
-
-### DataLoaders.py
-
-Contains:
-
-- PyTorch Lightning DataModule
-- Optimized PyTorch DataLoaders
-- Dataset loading utilities
-- Batching and training data pipeline
-
-### HyperParam_Classes.py
-
-Contains:
-
-- Dataclass-based hyperparameter definitions
-- Model configuration classes
-- Training configuration classes
-
-### Model_Classes.py
-
-Contains the complete GPT architecture implementation including:
-
-- Token embeddings
-- RoPE positional encoding
-- Multi-head self attention
-- RMSNorm layers
-- Transformer blocks
-- ReLU² MLP layers
-- Language modeling head
-
-### Optimizer.py
-
-Contains:
-
-- Custom Muon–AdamW hybrid optimizer
-- Custom learning rate scheduler
-- Optimization utilities
-
-### prepare_pretraining_data.py
-
-Contains:
-
-- Dataset preprocessing pipeline
-- Token generation workflow
-- Pretraining dataset preparation
-
-### train.py
-
-Contains:
-
-- Model initialization
-- Trainer configuration
-- Training loop orchestration
-
-### tokenizers_dir/
-
-Contains:
-
-- Tokenizer training pipeline
-- Tokenizer data preparation
-- Trained tokenizer artifacts
 
 ---
 
@@ -170,41 +116,37 @@ Contains:
 
 ### Embedding Layer
 
-The model begins with a token embedding layer that converts token IDs into dense vector representations.
+Input tokens are mapped into dense vector representations through a learned embedding table.
 
-The output language modeling head shares weights with the token embedding layer through weight tying.
+The language modeling head shares weights with the token embeddings through weight tying.
 
 ---
 
 ### Attention Layer
 
-Each transformer block contains:
+Each Transformer block applies:
 
-- Linear QKV projection
-- Query RMSNorm
-- Key RMSNorm
-- Rotary Positional Embeddings (RoPE)
+- Query, Key, and Value projections
+- Query & Key RMSNorm
+- Rotary positional encoding
 - Causal self-attention
-- Scaled Dot Product Attention
-- Output projection layer
+- Output projection
 
 ---
 
 ### Feed Forward Network
 
-The MLP layer consists of:
-
 ```text
 Input
   │
   ▼
-Linear Up Projection
+Linear Expansion
   │
   ▼
-ReLU² Activation
+ReLU²
   │
   ▼
-Linear Down Projection
+Linear Projection
   │
   ▼
 Output
@@ -214,46 +156,34 @@ Output
 
 ### Transformer Block
 
-Each transformer block follows a Pre-Norm design:
-
 ```text
 Input
  │
  ├── RMSNorm
- ├── Multi-Head Attention
- ├── Residual Connection
+ ├── Attention
+ ├── Residual
  │
  ├── RMSNorm
- ├── ReLU² MLP
- ├── Residual Connection
+ ├── MLP
+ ├── Residual
  │
  ▼
 Output
 ```
 
-Residual branches are scaled by a factor of 1 / √(2L),
+Residual branches are scaled by:
 
-where L is the number of transformer layers.
+```text
+1 / √(2L)
+```
+
+where **L** is the number of Transformer layers.
 
 ---
 
-## Training Pipeline
-
-### 1. Train Tokenizer
-
-```bash
-python tokenizers_dir/Tokenizer_train.py
-```
-
-### 2. Prepare Pretraining Data
-
-```bash
-python prepare_pretraining_data.py
-```
-
 ### 3. Configure Hyperparameters
 
-All model and training hyperparameters are defined through dataclass-based configuration classes inside:
+All model and training configurations are defined in:
 
 ```text
 HyperParam_Classes.py
@@ -265,18 +195,13 @@ HyperParam_Classes.py
 python train.py
 ```
 
-Training is orchestrated through PyTorch Lightning using dedicated Lightning Modules and Lightning DataModules.
-
 ---
 
 ## Available Tokenizers
 
 | Tokenizer | Vocabulary Size |
-|------------|----------------|
-| tokenizer_16k.json | 16,384 |
+|------------|------------|
 | tokenizer_32k.json | 32,768 |
-
-These tokenizers can be used directly for pretraining, finetuning, and inference workflows.
 
 ---
 
@@ -293,16 +218,15 @@ These tokenizers can be used directly for pretraining, finetuning, and inference
 
 ## Project Goal
 
-MineGPT is an end-to-end language model training project designed to explore modern GPT training techniques while maintaining a fully modular codebase.
+SharpGPT is an end-to-end language model training project focused on building modern GPT-style architectures from the ground up.
 
-The project covers:
+The project explores:
 
 - Tokenizer training
 - Dataset preparation
-- GPT architecture implementation
-- Custom optimization strategies
-- Efficient training infrastructure
+- Transformer implementation
+- Custom optimization techniques
 - Large-scale language model pretraining
-- Domain-specific continued pretraining
+- Efficient training infrastructure
 
-with a focus on building a Minecraft-specialized language model from the ground up.
+while maintaining a modular, reproducible, and extensible codebase for future experimentation.
