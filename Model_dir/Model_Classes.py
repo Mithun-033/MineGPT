@@ -405,7 +405,7 @@ class GPT(nn.Module):
         self.final_norm=nn.RMSNorm(config.d_model,eps=1e-5)
         self.lm_head=nn.Linear(config.d_model,config.vocab_size,bias=False)
         self.value_embeddings=nn.ModuleList([nn.Embedding(config.vocab_size,config.d_model) if has_ve(config.num_layers,i+1) else None for i in range(config.num_layers)])
-        self.lm_head.weight=self.embed.weight # Weights tying
+        #self.lm_head.weight=self.embed.weight 
         self.apply(self._init_weights)
 
     def _init_weights(self, module):
