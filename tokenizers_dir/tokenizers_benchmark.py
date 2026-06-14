@@ -62,9 +62,10 @@ def check_compression():
 
     '''
     tokenizers=[
-        os.path.join(TOK_DIR,"tokenizer_49k.json"),
         os.path.join(TOK_DIR,"tokenizer_32k.json"),
         os.path.join(TOK_DIR,"tokenizer_32k_whitespace.json"),
+        os.path.join(TOK_DIR,"tokenizer_49k.json"),
+        os.path.join(TOK_DIR,"tokenizer_49k_whitespace.json")
     ]
 
     for tok_path in tokenizers:
@@ -110,9 +111,9 @@ def check_compression():
 if __name__=="__main__":
     os.makedirs(DATA_DIR,exist_ok=True)
     
-    print("Downloading unseen portion of ClimbMix dataset...")
-    download_unseen_climbmix()
-    print("Climbix Unseen downloaded...\n")
+    # print("Downloading unseen portion of ClimbMix dataset...")
+    # download_unseen_climbmix()
+    # print("Climbix Unseen downloaded...\n")
 
     print("Checking compression ratios...")
     check_compression()

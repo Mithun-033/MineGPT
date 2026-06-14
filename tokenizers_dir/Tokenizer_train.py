@@ -1,11 +1,11 @@
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from tokenizers.trainers import BpeTrainer
-from tokenizers.pre_tokenizers import ByteLevel
+from tokenizers.pre_tokenizers import ByteLevel, Whitespace
 import os
 
 DATA_DIR="data"
-TOK_DIR="tokenizers"
+TOK_DIR="tokenizers_dir"
 
 def tokenizer_49k():
     ''' Trains a BPE tokenizer with a vocab size of 49,152 using the climbmix dataset.
@@ -16,7 +16,7 @@ def tokenizer_49k():
     - Pre-tokenizer: ByteLevel (splits on byte level, allowing for better handling of code and special characters)
     - Special Tokens: <PAD>, <UNK>, <BOS>, <EOS>
     - Vocabulary Size: 49,152 tokens
-    - Output File: tokenizers/tokenizer_49k.json
+    - Output File: tokenizers_dir/tokenizer_49k_whitespace.json
 
     Dataset Requirements:
     - data/climbmix.txt: Training data (e.g., code or technical documentation)
@@ -28,7 +28,7 @@ def tokenizer_49k():
     '''
 
     tok=Tokenizer(BPE())
-    tok.pre_tokenizer=ByteLevel()
+    tok.pre_tokenizer=Whitespace()
     trainer=BpeTrainer(
         vocab_size=49_152,
         special_tokens=["<PAD>","<UNK>","<BOS>","<EOS>"],
@@ -40,7 +40,7 @@ def tokenizer_49k():
         ],
         trainer=trainer
     )
-    tok.save(os.path.join(TOK_DIR, "tokenizer_49k.json"))
+    tok.save(os.path.join(TOK_DIR, "tokenizer_49k_whitespace.json"))
 
 def tokenizer_32k():
     ''' Trains a BPE tokenizer with a vocab size of 32,000 using the climbmix dataset.
@@ -48,11 +48,11 @@ def tokenizer_32k():
     
     Configuration Details:
     - Model: BPE (Byte Pair Encoding)
-    - Pre-tokenizer: ByteLevel (splits on byte level, allowing for better handling of code and special characters)
+    - Pre-tokenizer: Whitespace (splits on whitespace characters)
     - Special Tokens: <PAD>, <UNK>, <BOS>, <EOS>
     - Vocabulary Size: 32,768 tokens
-    - Output File: tokenizers/tokenizer_32k.json
-    
+    - Output File: tokenizers/tokenizer_32k_whitespace.json
+
     Dataset Requirements:
     - data/climbmix.txt: Training data (e.g., code or technical documentation)
 
@@ -63,7 +63,7 @@ def tokenizer_32k():
     '''
 
     tok=Tokenizer(BPE())
-    tok.pre_tokenizer=ByteLevel()
+    tok.pre_tokenizer=Whitespace()
     trainer=BpeTrainer(
         vocab_size=32_768,
         special_tokens=["<PAD>","<UNK>","<BOS>","<EOS>"],
@@ -75,7 +75,7 @@ def tokenizer_32k():
         ],
         trainer=trainer
     )
-    tok.save(os.path.join(TOK_DIR, "tokenizer_32k.json"))
+    tok.save(os.path.join(TOK_DIR, "tokenizer_32k_whitespace.json"))
 
 if __name__=="__main__":
     os.makedirs(TOK_DIR,exist_ok=True)
