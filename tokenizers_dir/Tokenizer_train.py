@@ -1,23 +1,23 @@
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from tokenizers.trainers import BpeTrainer
-from tokenizers.pre_tokenizers import Whitespace
+from tokenizers.pre_tokenizers import ByteLevel
 import os
 
 DATA_DIR="data"
 TOK_DIR="tokenizers"
 
-def tokenizer_16k():
-    ''' Trains a BPE tokenizer with a vocab size of 16,000 using the climbmix dataset.
-    The trained tokenizer is saved as tokenizer_16k.json in the current directory.
-    
+def tokenizer_49k():
+    ''' Trains a BPE tokenizer with a vocab size of 49,152 using the climbmix dataset.
+    The trained tokenizer is saved as tokenizer_49k.json in the current directory.
+
     Configuration Details:
     - Model: BPE (Byte Pair Encoding)
-    - Pre-tokenizer: Whitespace (splits on whitespace only)
+    - Pre-tokenizer: ByteLevel (splits on byte level, allowing for better handling of code and special characters)
     - Special Tokens: <PAD>, <UNK>, <BOS>, <EOS>
-    - Vocabulary Size: 16,384 tokens
-    - Output File: tokenizers/tokenizer_16k.json
-    
+    - Vocabulary Size: 49,152 tokens
+    - Output File: tokenizers/tokenizer_49k.json
+
     Dataset Requirements:
     - data/climbmix.txt: Training data (e.g., code or technical documentation)
     
@@ -28,9 +28,9 @@ def tokenizer_16k():
     '''
 
     tok=Tokenizer(BPE())
-    tok.pre_tokenizer=Whitespace()
+    tok.pre_tokenizer=ByteLevel()
     trainer=BpeTrainer(
-        vocab_size=16_384,
+        vocab_size=49_152,
         special_tokens=["<PAD>","<UNK>","<BOS>","<EOS>"],
         show_progress=True,
     )
@@ -40,7 +40,7 @@ def tokenizer_16k():
         ],
         trainer=trainer
     )
-    tok.save(os.path.join(TOK_DIR, "tokenizer_16k.json"))
+    tok.save(os.path.join(TOK_DIR, "tokenizer_49k.json"))
 
 def tokenizer_32k():
     ''' Trains a BPE tokenizer with a vocab size of 32,000 using the climbmix dataset.
@@ -48,7 +48,7 @@ def tokenizer_32k():
     
     Configuration Details:
     - Model: BPE (Byte Pair Encoding)
-    - Pre-tokenizer: Whitespace (splits on whitespace only)
+    - Pre-tokenizer: ByteLevel (splits on byte level, allowing for better handling of code and special characters)
     - Special Tokens: <PAD>, <UNK>, <BOS>, <EOS>
     - Vocabulary Size: 32,768 tokens
     - Output File: tokenizers/tokenizer_32k.json
@@ -63,7 +63,7 @@ def tokenizer_32k():
     '''
 
     tok=Tokenizer(BPE())
-    tok.pre_tokenizer=Whitespace()
+    tok.pre_tokenizer=ByteLevel()
     trainer=BpeTrainer(
         vocab_size=32_768,
         special_tokens=["<PAD>","<UNK>","<BOS>","<EOS>"],
@@ -71,17 +71,17 @@ def tokenizer_32k():
     )
     tok.train(
         files=[
-            os.path.join(DATA_DIR,"climbmix_200.txt"),
+            os.path.join(DATA_DIR,"climbmix.txt"),
         ],
         trainer=trainer
     )
-    tok.save(os.path.join(TOK_DIR, "tokenizer_32k_2.json"))
+    tok.save(os.path.join(TOK_DIR, "tokenizer_32k.json"))
 
 if __name__=="__main__":
     os.makedirs(TOK_DIR,exist_ok=True)
 
-    print("Training Tokenizer with vocab size 16k...")
-    tokenizer_16k()
+    print("Training Tokenizer with vocab size 49k...")
+    tokenizer_49k()
 
     print("------------------------------------------------------------------------------")
 
