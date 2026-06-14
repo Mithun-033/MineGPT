@@ -56,7 +56,7 @@ def get_optimizer(model, tp, gp):
     optimizer = HybridOptim(
         model=model,
         OptimHParams=OptimHParams,
-        total_steps=2_000_000_000 // (tp.grad_batches * gp.cwl)
+        total_steps=6_000_000_000 // (tp.grad_batches * gp.cwl)
     )
     return optimizer
 
@@ -78,7 +78,7 @@ def train(Model):
 
     val_dataloader=None
 
-    with tqdm(total=2_000_000_000, desc="Training", unit="Tokens") as pbar:
+    with tqdm(total=6_000_000_000, desc="Training", unit="Tokens") as pbar:
         opt_steps=0
         batch_count=0
         for i in range(10):
