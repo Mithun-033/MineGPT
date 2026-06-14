@@ -8,7 +8,7 @@ DATA_DIR="data"
 TOK_DIR="tokenizers"
 
 def tokenizer_16k():
-    ''' Trains a BPE tokenizer with a vocab size of 16,000 using the climbmix, mine_q_a and mine_wiki datasets. 
+    ''' Trains a BPE tokenizer with a vocab size of 16,000 using the climbmix dataset.
     The trained tokenizer is saved as tokenizer_16k.json in the current directory.
     
     Configuration Details:
@@ -20,8 +20,7 @@ def tokenizer_16k():
     
     Dataset Requirements:
     - data/climbmix.txt: Training data (e.g., code or technical documentation)
-    - data/mine_q_a.txt: Question-answer pairs for training
-    - data/mine_wiki.txt: Wiki-style text data
+    
     
     Raises:
         FileNotFoundError: If required data files are missing in the data directory
@@ -44,7 +43,7 @@ def tokenizer_16k():
     tok.save(os.path.join(TOK_DIR, "tokenizer_16k.json"))
 
 def tokenizer_32k():
-    ''' Trains a BPE tokenizer with a vocab size of 32,000 using the climbmix, mine_q_a and mine_wiki datasets. 
+    ''' Trains a BPE tokenizer with a vocab size of 32,000 using the climbmix dataset.
     The trained tokenizer is saved as tokenizer_32k.json in the current directory.
     
     Configuration Details:
@@ -56,8 +55,6 @@ def tokenizer_32k():
     
     Dataset Requirements:
     - data/climbmix.txt: Training data (e.g., code or technical documentation)
-    - data/mine_q_a.txt: Question-answer pairs for training
-    - data/mine_wiki.txt: Wiki-style text data
 
     
     Raises:
