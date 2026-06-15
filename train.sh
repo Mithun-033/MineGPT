@@ -1,13 +1,5 @@
 #!/bin/bash
 
-echo "Git cloning the repository..."
-
-git clone https://github.com/Mithun-033/SharpGPT.git
-
-echo "Repository cloned successfully."
-
-#------------------------------------------------------------------------------------#
-
 echo "Downloading required torch version..."
 
 TORCH_VERSION=$(python -c "import torch; print(torch.__version__)")
@@ -31,12 +23,19 @@ echo "All dependencies installed successfully."
 #------------------------------------------------------------------------------------#
 
 cd SharpGPT
-# fill the lightning cp to download pre train data / download data to Pre_train_data dir path
 
-#--------------------------------------------------------------------------------#
+echo "Downloading pre-trained data..."
 
-echo "Starting the training process..."
-python Model_dir/train.py
+python prepare_pretrain_data.py
+
+echo "Pre-trained data downloaded successfully."
+
+#------------------------------------------------------------------------------------#
+
+echo "Starting training process..."
+python train.py
+
+
 
 
 
